@@ -86,11 +86,19 @@ class PyCalcUI(QMainWindow):
 
 # The controller
 class PyCalcController:
-    def __init__(self, view):
+    def __init__(self, model, view):
+        self._evaluate = model
         self._view = view
         self._connectSignals()
 
+    def _calculateResult(self):
+        result = self._evaluate(expression=self._view.displayText())
+        self._view.setDisplayText(result)
+
     def _buildExpression(self, sub_exp):
+        if self._view.displayText() == ERROR_MSG:
+            self._view.clearDisplay()
+
         expression = self._view.displayText() + sub_exp
         self._view.setDisplayText(expression)
 
@@ -98,7 +106,23 @@ class PyCalcController:
         for btnText, btn in self._view.buttons.items():
             if btnText not in {"=", "C"}:
                 btn.clicked.connect(partial(self._buildExpression, btnText))
+
+        self._view.buttons["="].clicked.connect(self._calculateResult)
+        self._view.display.returnPressed.connect(self._calculateResult)
         self._view.buttons["C"].clicked.connect(self._view.clearDisplay)
+
+
+# The model
+ERROR_MSG = "ERROR"
+
+
+def evaluationExpressioin(expression):
+    try:
+        # only use eval on trusted input or can lead to serious security issue
+        result = str(eval(expression, {}, {}))
+    except Exception:  # not the best practice
+        result = ERROR_MSG
+    return result
 
 
 def main():
@@ -108,8 +132,11 @@ def main():
     # Show the calculator's GUI
     view = PyCalcUI()
     view.show()
+
+    model = evaluationExpressioin
+
     # Create instances of the model and the controller
-    PyCalcController(view=view)
+    PyCalcController(model=model, view=view)
     # Execute calculator's main loop
     sys.exit(pycalc.exec_())
 
